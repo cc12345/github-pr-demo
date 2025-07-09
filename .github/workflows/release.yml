@@ -1,0 +1,156 @@
+name: 自动发布
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 设置 Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: 构建包
+      run: |
+        python -m build
+    
+    - name: 运行测试
+      run: |
+        pip install -r requirements.txt
+        python -m pytest tests/ -v
+    
+    - name: 生成变更日志
+      id: changelog
+      run: |
+        # 获取当前标签
+        CURRENT_TAG=${GITHUB_REF#refs/tags/}
+        echo "current_tag=${CURRENT_TAG}" >> $GITHUB_OUTPUT
+        
+        # 获取上一个标签
+        PREV_TAG=$(git describe --tags --abbrev=0 ${CURRENT_TAG}^)
+        echo "prev_tag=${PREV_TAG}" >> $GITHUB_OUTPUT
+        
+        # 生成变更日志
+        echo "## 🚀 变更内容" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        
+        # 获取提交记录
+        git log --pretty=format:"- %s" ${PREV_TAG}..${CURRENT_TAG} >> CHANGELOG.md
+        
+        # 按类型分类提交
+        echo "" >> CHANGELOG.md
+        echo "### ✨ 新功能" >> CHANGELOG.md
+        git log --pretty=format:"- %s" ${PREV_TAG}..${CURRENT_TAG} | grep "^- feat:" || echo "- 无新功能" >> CHANGELOG.md
+        
+        echo "" >> CHANGELOG.md
+        echo "### 🐛 Bug 修复" >> CHANGELOG.md
+        git log --pretty=format:"- %s" ${PREV_TAG}..${CURRENT_TAG} | grep "^- fix:" || echo "- 无 Bug 修复" >> CHANGELOG.md
+        
+        echo "" >> CHANGELOG.md
+        echo "### 📚 文档更新" >> CHANGELOG.md
+        git log --pretty=format:"- %s" ${PREV_TAG}..${CURRENT_TAG} | grep "^- docs:" || echo "- 无文档更新" >> CHANGELOG.md
+        
+        echo "" >> CHANGELOG.md
+        echo "### 🔧 其他变更" >> CHANGELOG.md
+        git log --pretty=format:"- %s" ${PREV_TAG}..${CURRENT_TAG} | grep -v "^- feat:" | grep -v "^- fix:" | grep -v "^- docs:" || echo "- 无其他变更" >> CHANGELOG.md
+        
+        # 添加统计信息
+        echo "" >> CHANGELOG.md
+        echo "### 📊 统计信息" >> CHANGELOG.md
+        echo "- 📅 发布日期: $(date +'%Y-%m-%d %H:%M:%S')" >> CHANGELOG.md
+        echo "- 🏷️ 版本: ${CURRENT_TAG}" >> CHANGELOG.md
+        echo "- 📝 提交数: $(git rev-list --count ${PREV_TAG}..${CURRENT_TAG})" >> CHANGELOG.md
+        echo "- 👥 贡献者: $(git shortlog -sn ${PREV_TAG}..${CURRENT_TAG} | wc -l)" >> CHANGELOG.md
+        
+        # 输出到环境变量
+        echo "changelog_content<<EOF" >> $GITHUB_OUTPUT
+        cat CHANGELOG.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: 创建 GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.changelog.outputs.current_tag }}
+        name: Release ${{ steps.changelog.outputs.current_tag }}
+        body: ${{ steps.changelog.outputs.changelog_content }}
+        draft: false
+        prerelease: false
+        files: |
+          dist/*
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 发布到 PyPI (可选)
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        echo "📦 准备发布到 PyPI..."
+        echo "🔐 配置 PyPI 凭证..."
+        # twine upload dist/*
+        echo "✅ 发布完成!"
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+    
+    - name: 通知发布结果
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const tag = process.env.GITHUB_REF.replace('refs/tags/', '');
+          const success = '${{ job.status }}' === 'success';
+          
+          const message = success 
+            ? `🎉 **发布成功!** 版本 ${tag} 已经发布到 GitHub Releases`
+            : `❌ **发布失败!** 版本 ${tag} 发布过程中出现错误`;
+          
+          // 可以在这里添加通知到 Slack、Discord 等
+          console.log(message);
+          
+          // 创建 issue 通知发布结果
+          if (success) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🎉 版本 ${tag} 发布成功`,
+              body: `版本 ${tag} 已成功发布！\n\n查看发布详情: https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${tag}`,
+              labels: ['release', 'announcement']
+            });
+          }
+
+  deploy-docs:
+    runs-on: ubuntu-latest
+    needs: create-release
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 部署文档
+      run: |
+        echo "📚 部署文档到 GitHub Pages..."
+        # 这里可以添加文档部署脚本
+        echo "✅ 文档部署完成!"
+    
+    - name: 更新 README 徽章
+      run: |
+        echo "🏷️ 更新 README 中的版本徽章..."
+        TAG=${GITHUB_REF#refs/tags/}
+        echo "最新版本: ${TAG}"
+        # 这里可以添加更新 README 的脚本

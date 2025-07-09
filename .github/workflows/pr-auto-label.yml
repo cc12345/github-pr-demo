@@ -1,0 +1,168 @@
+name: PR 自动标签
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  auto-label:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    
+    steps:
+    - name: 根据 PR 标题自动添加标签
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = context.payload.pull_request.title.toLowerCase();
+          const labels = [];
+          
+          // 根据提交类型添加标签
+          if (title.startsWith('feat:')) {
+            labels.push('enhancement');
+          } else if (title.startsWith('fix:')) {
+            labels.push('bug');
+          } else if (title.startsWith('docs:')) {
+            labels.push('documentation');
+          } else if (title.startsWith('test:')) {
+            labels.push('tests');
+          } else if (title.startsWith('refactor:')) {
+            labels.push('refactor');
+          } else if (title.startsWith('style:')) {
+            labels.push('style');
+          } else if (title.startsWith('chore:')) {
+            labels.push('chore');
+          }
+          
+          // 根据文件变更添加标签
+          const { data: files } = await github.rest.pulls.listFiles({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.payload.pull_request.number
+          });
+          
+          const changedFiles = files.map(f => f.filename);
+          
+          if (changedFiles.some(f => f.startsWith('src/'))) {
+            labels.push('code-change');
+          }
+          
+          if (changedFiles.some(f => f.startsWith('tests/'))) {
+            labels.push('test-change');
+          }
+          
+          if (changedFiles.some(f => f.startsWith('docs/') || f.endsWith('.md'))) {
+            labels.push('documentation');
+          }
+          
+          if (changedFiles.some(f => f.includes('requirements.txt') || f.includes('setup.py'))) {
+            labels.push('dependencies');
+          }
+          
+          if (changedFiles.some(f => f.startsWith('.github/'))) {
+            labels.push('ci-cd');
+          }
+          
+          // 计算变更规模
+          const totalChanges = files.reduce((sum, f) => sum + f.additions + f.deletions, 0);
+          
+          if (totalChanges > 500) {
+            labels.push('large-change');
+          } else if (totalChanges > 100) {
+            labels.push('medium-change');
+          } else {
+            labels.push('small-change');
+          }
+          
+          // 添加标签
+          if (labels.length > 0) {
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: [...new Set(labels)] // 去重
+            });
+          }
+    
+    - name: 添加 PR 大小评估评论
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: files } = await github.rest.pulls.listFiles({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.payload.pull_request.number
+          });
+          
+          const totalChanges = files.reduce((sum, f) => sum + f.additions + f.deletions, 0);
+          const fileCount = files.length;
+          
+          let sizeEmoji = '📏';
+          let sizeDescription = '';
+          
+          if (totalChanges > 500) {
+            sizeEmoji = '🔥';
+            sizeDescription = '大型变更';
+          } else if (totalChanges > 100) {
+            sizeEmoji = '📊';
+            sizeDescription = '中型变更';
+          } else {
+            sizeEmoji = '✨';
+            sizeDescription = '小型变更';
+          }
+          
+          const comment = `${sizeEmoji} **PR 规模评估**
+
+          📊 **变更统计**
+          - 📁 修改文件数: ${fileCount}
+          - ➕ 新增行数: ${files.reduce((sum, f) => sum + f.additions, 0)}
+          - ➖ 删除行数: ${files.reduce((sum, f) => sum + f.deletions, 0)}
+          - 📈 总变更行数: ${totalChanges}
+          - 🏷️ 变更规模: ${sizeDescription}
+
+          📁 **文件变更列表**
+          ${files.map(f => `- \`${f.filename}\` (+${f.additions} -${f.deletions})`).join('\n')}
+
+          ${totalChanges > 500 ? '⚠️ **注意**: 这是一个大型变更，建议仔细审查。' : ''}
+          ${totalChanges > 100 && totalChanges <= 500 ? '📋 **建议**: 中型变更，建议分模块审查。' : ''}
+          ${totalChanges <= 100 ? '✅ **很好**: 小型变更，易于审查。' : ''}`;
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.pull_request.number,
+            body: comment
+          });
+    
+    - name: 检查 PR 标题格式
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = context.payload.pull_request.title;
+          const validPrefixes = ['feat:', 'fix:', 'docs:', 'style:', 'refactor:', 'test:', 'chore:'];
+          
+          const hasValidPrefix = validPrefixes.some(prefix => title.startsWith(prefix));
+          
+          if (!hasValidPrefix) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `❌ **PR 标题格式不正确**
+
+              请确保 PR 标题以以下前缀之一开头：
+              - \`feat:\` - 新功能
+              - \`fix:\` - 修复 bug
+              - \`docs:\` - 文档更新
+              - \`style:\` - 代码格式化
+              - \`refactor:\` - 重构
+              - \`test:\` - 测试相关
+              - \`chore:\` - 构建或辅助工具
+
+              **当前标题**: \`${title}\`
+              
+              **示例**: \`feat: add user authentication\``
+            });
+          }
