@@ -81,6 +81,21 @@ class Calculator:
         self.history.append(f"{a} / {b} = {result}")
         return result
     
+    def power(self, a: Number, b: Number) -> Number:
+        """
+        幂运算
+        
+        Args:
+            a: 底数
+            b: 指数
+            
+        Returns:
+            a 的 b 次幂
+        """
+        result = a ** b
+        self.history.append(f"{a} ^ {b} = {result}")
+        return result
+    
     def get_history(self) -> list:
         """
         获取计算历史
