@@ -56,6 +56,27 @@ class TestCalculator:
         assert self.calc.subtract(2.5, 1) == 1.5
         assert self.calc.subtract(1.5, 1) == 0.5
     
+    def test_multiply_integers(self):
+        """测试整数乘法"""
+        assert self.calc.multiply(3, 4) == 12
+        assert self.calc.multiply(5, 0) == 0
+        assert self.calc.multiply(0, 7) == 0
+        assert self.calc.multiply(-2, 3) == -6
+        assert self.calc.multiply(-4, -5) == 20
+    
+    def test_multiply_floats(self):
+        """测试浮点数乘法"""
+        assert self.calc.multiply(2.5, 4.0) == 10.0
+        assert self.calc.multiply(1.5, 2.0) == 3.0
+        assert self.calc.multiply(0.5, 0.5) == 0.25
+        assert self.calc.multiply(-1.5, 2.0) == -3.0
+    
+    def test_multiply_mixed_types(self):
+        """测试混合类型乘法"""
+        assert self.calc.multiply(5, 2.5) == 12.5
+        assert self.calc.multiply(2.5, 2) == 5.0
+        assert self.calc.multiply(1.5, 0) == 0.0
+    
     def test_history_tracking(self):
         """测试历史记录功能"""
         self.calc.add(1, 2)
