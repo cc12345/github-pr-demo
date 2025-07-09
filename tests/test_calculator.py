@@ -77,6 +77,33 @@ class TestCalculator:
         assert self.calc.multiply(2.5, 2) == 5.0
         assert self.calc.multiply(1.5, 0) == 0.0
     
+    def test_divide_integers(self):
+        """测试整数除法"""
+        assert self.calc.divide(10, 2) == 5.0
+        assert self.calc.divide(9, 3) == 3.0
+        assert self.calc.divide(-10, 2) == -5.0
+        assert self.calc.divide(-15, -3) == 5.0
+    
+    def test_divide_floats(self):
+        """测试浮点数除法"""
+        assert self.calc.divide(7.5, 2.5) == 3.0
+        assert self.calc.divide(1.0, 0.5) == 2.0
+        assert self.calc.divide(0.25, 0.5) == 0.5
+        assert self.calc.divide(-3.0, 1.5) == -2.0
+    
+    def test_divide_mixed_types(self):
+        """测试混合类型除法"""
+        assert self.calc.divide(10, 2.5) == 4.0
+        assert self.calc.divide(7.5, 3) == 2.5
+        assert self.calc.divide(1.0, 4) == 0.25
+    
+    def test_divide_by_zero(self):
+        """测试除零错误"""
+        with pytest.raises(ZeroDivisionError, match="不能除以零"):
+            self.calc.divide(10, 0)
+        with pytest.raises(ZeroDivisionError, match="不能除以零"):
+            self.calc.divide(5.5, 0.0)
+    
     def test_history_tracking(self):
         """测试历史记录功能"""
         self.calc.add(1, 2)
