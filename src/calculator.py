@@ -61,6 +61,26 @@ class Calculator:
         self.history.append(f"{a} * {b} = {result}")
         return result
     
+    def divide(self, a: Number, b: Number) -> Number:
+        """
+        除法运算
+        
+        Args:
+            a: 被除数
+            b: 除数
+            
+        Returns:
+            两数之商
+            
+        Raises:
+            ZeroDivisionError: 当除数为零时抛出
+        """
+        if b == 0:
+            raise ZeroDivisionError("不能除以零")
+        result = a / b
+        self.history.append(f"{a} / {b} = {result}")
+        return result
+    
     def get_history(self) -> list:
         """
         获取计算历史
@@ -87,19 +107,21 @@ def main():
     print(f"1 + 2 = {calc.add(1, 2)}")
     print(f"10 - 3 = {calc.subtract(10, 3)}")
     print(f"4 * 6 = {calc.multiply(4, 6)}")
+    print(f"12 / 3 = {calc.divide(12, 3)}")
     print(f"5.5 + 2.3 = {calc.add(5.5, 2.3)}")
     print(f"15 - 7.5 = {calc.subtract(15, 7.5)}")
     print(f"3.5 * 2.0 = {calc.multiply(3.5, 2.0)}")
+    print(f"7.5 / 2.5 = {calc.divide(7.5, 2.5)}")
     
     print("\n📝 计算历史：")
     for record in calc.get_history():
         print(f"  {record}")
     
     print("\n✨ 更多功能正在开发中...")
-    print("  - 除法运算")
-    print("  - 错误处理")
     print("  - 高级数学函数")
     print("  - 表达式解析")
+    print("  - 科学计算")
+    print("  - 数据可视化")
 
 
 if __name__ == "__main__":
