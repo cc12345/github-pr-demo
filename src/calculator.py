@@ -46,6 +46,21 @@ class Calculator:
         self.history.append(f"{a} - {b} = {result}")
         return result
     
+    def multiply(self, a: Number, b: Number) -> Number:
+        """
+        乘法运算
+        
+        Args:
+            a: 第一个数字
+            b: 第二个数字
+            
+        Returns:
+            两数之积
+        """
+        result = a * b
+        self.history.append(f"{a} * {b} = {result}")
+        return result
+    
     def get_history(self) -> list:
         """
         获取计算历史
@@ -71,18 +86,20 @@ def main():
     print("📊 基础运算演示：")
     print(f"1 + 2 = {calc.add(1, 2)}")
     print(f"10 - 3 = {calc.subtract(10, 3)}")
+    print(f"4 * 6 = {calc.multiply(4, 6)}")
     print(f"5.5 + 2.3 = {calc.add(5.5, 2.3)}")
     print(f"15 - 7.5 = {calc.subtract(15, 7.5)}")
+    print(f"3.5 * 2.0 = {calc.multiply(3.5, 2.0)}")
     
     print("\n📝 计算历史：")
     for record in calc.get_history():
         print(f"  {record}")
     
     print("\n✨ 更多功能正在开发中...")
-    print("  - 乘法运算")
     print("  - 除法运算")
     print("  - 错误处理")
     print("  - 高级数学函数")
+    print("  - 表达式解析")
 
 
 if __name__ == "__main__":
